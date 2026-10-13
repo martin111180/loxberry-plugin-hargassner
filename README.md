@@ -40,3 +40,9 @@ Im MQTT Gateway wird daraus z. B. der Eingang `hargassner_kessel_stoerlampe`.
 
 * [Prüfung der Gemini-Lösung und Umstieg von den alten Skripten](docs/pruefung-gemini.md)
 * [Entwicklung und Releases](docs/entwicklung.md)
+
+## Hinweis
+
+Inoffizielles Community-Projekt, nicht mit der Hargassner GmbH verbunden und nicht von ihr geprüft oder
+unterstützt. „Hargassner“ ist eine Marke ihres Inhabers und wird hier nur genannt, um die unterstützten
+Heizungen zu bezeichnen.
