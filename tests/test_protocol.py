@@ -108,47 +108,38 @@ class ValidatorTest(unittest.TestCase):
 
 
 class TopicsTest(unittest.TestCase):
-    def test_index_topics(self):
-        topics = build_topics(REAL.split(), {})
-        self.assertEqual(topics["idx_0"], "pm")
-        self.assertEqual(topics["idx_91"], "09:38:36")
-        self.assertEqual(len(topics), 92)
+    def test_only_named_values_are_sent(self):
+        self.assertEqual(build_topics(REAL.split(), {}), {})
+        topics = build_topics(REAL.split(), normalize_fields({"4": "Kesseltemp", "6": "Aussentemp"}))
+        self.assertEqual(topics, {"kesseltemp": "68", "aussentemp": "0.9"})
 
-    def test_names_and_hex_bits(self):
+    def test_hex_bits(self):
         fields = normalize_fields({
-            "4": "Kesseltemp",  # altes Format
-            "84": {"name": "Digital 3", "type": "hex", "bits": {"0": "Pumpe HK1", "7": "Störlampe"}},
+            "84": {"name": "Digital 3", "type": "hex", "bits": {"0": "Pumpe HK1", "1": "Pumpe HK2", "7": "Störlampe", "12": "Bit zwoelf"}},
         })
         topics = build_topics(REAL.split(), fields)
-        self.assertEqual(topics["kesseltemp"], "68")
-        self.assertEqual(topics["digital_3"], "ff1")
-        # 0xff1 = 1111 1111 0001
-        self.assertEqual(topics["idx_84/bit_0"], "1")
-        self.assertEqual(topics["idx_84/bit_1"], "0")
-        self.assertEqual(topics["idx_84/bit_4"], "1")
-        self.assertEqual(topics["idx_84/bit_11"], "1")
-        self.assertEqual(topics["idx_84/bit_12"], "0")
-        self.assertEqual(topics["pumpe_hk1"], "1")
-        self.assertEqual(topics["stoerlampe"], "1")
+        # 0xff1 = 1111 1111 0001; nur benannte Bits werden gesendet
+        self.assertEqual(topics, {"digital_3": "ff1", "pumpe_hk1": "1", "pumpe_hk2": "0", "stoerlampe": "1", "bit_zwoelf": "0"})
 
-    def test_decimal_bits(self):
-        fields = {"82": {"name": "", "type": "dec", "bits": {}}}
-        topics = build_topics(REAL.split(), fields)
+    def test_decimal_bits_without_field_name(self):
+        fields = {"82": {"name": "", "type": "dec", "bits": {"0": "a", "4": "b", "7": "c", "11": "d"}}}
         # 2129 = 0b1000_0101_0001
-        self.assertEqual([topics[f"idx_82/bit_{b}"] for b in (0, 4, 6, 11)], ["1", "1", "1", "1"])
-        self.assertEqual(topics["idx_82/bit_7"], "0")
+        self.assertEqual(build_topics(REAL.split(), fields), {"a": "1", "b": "1", "c": "0", "d": "1"})
 
-    def test_switches(self):
-        fields = normalize_fields({"4": "Kesseltemp"})
-        only_names = build_topics(REAL.split(), fields, publish_index=False)
-        self.assertEqual(only_names, {"kesseltemp": "68"})
-        only_index = build_topics(REAL.split(), fields, publish_names=False)
-        self.assertNotIn("kesseltemp", only_index)
+    def test_bits_of_plain_value_are_ignored(self):
+        fields = {"82": {"name": "Wert", "type": "value", "bits": {"7": "Störlampe"}}}
+        self.assertEqual(build_topics(REAL.split(), fields), {"wert": "2129"})
+
+    def test_index_beyond_record_is_ignored(self):
+        self.assertEqual(build_topics(REAL.split(), normalize_fields({"200": "Gibt es nicht"})), {})
 
     def test_reserved_names_are_ignored(self):
-        fields = normalize_fields({"4": "Bridge", "5": "idx_3"})
-        topics = build_topics(REAL.split(), fields, publish_index=False)
-        self.assertEqual(topics, {})
+        fields = normalize_fields({"4": "Bridge", "5": "%%"})
+        self.assertEqual(build_topics(REAL.split(), fields), {})
+
+    def test_invalid_keys_are_dropped(self):
+        fields = normalize_fields({"abc": "x", "4": {"name": "Kessel", "type": "hex", "bits": {"x": "y", "3": "z"}}})
+        self.assertEqual(fields, {"4": {"name": "Kessel", "type": "hex", "bits": {"3": "z"}}})
 
     def test_php_list_format(self):
         # PHP schreibt Arrays mit Schlüsseln 0, 1, 2 als JSON-Liste

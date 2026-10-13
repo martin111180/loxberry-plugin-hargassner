@@ -23,8 +23,6 @@ function default_config() {
 		'serial' => ['device' => '/dev/ttyUSB0', 'baudrate' => 19200],
 		'tcp' => ['host' => '', 'port' => 4196],
 		'topic' => 'hargassner/kessel',
-		'publish_index_topics' => true,
-		'publish_named_topics' => true,
 		'republish_seconds' => 300,
 		'data_timeout_seconds' => 30,
 		'expected_fields' => 0,
@@ -101,7 +99,7 @@ function cut($hg_s) {
 }
 
 function slug_allowed($hg_slug) {
-	return $hg_slug !== '' && $hg_slug !== 'bridge' && strpos($hg_slug, 'idx_') !== 0;
+	return $hg_slug !== '' && $hg_slug !== 'bridge';
 }
 
 // ---------------------------------------------------------------- Felder (Namen, Typ, Bits)
@@ -153,10 +151,10 @@ function validate_fields($hg_fields) {
 		}
 		$hg_names = [];
 		if ($hg_f['name'] !== '') {
-			$hg_names[] = [$hg_f['name'], "idx_$hg_idx"];
+			$hg_names[] = [$hg_f['name'], "Index $hg_idx"];
 		}
 		foreach ($hg_f['bits'] as $hg_b => $hg_n) {
-			$hg_names[] = [$hg_n, "idx_$hg_idx/bit_$hg_b"];
+			$hg_names[] = [$hg_n, "Index $hg_idx, Bit $hg_b"];
 		}
 		foreach ($hg_names as [$hg_name, $hg_where]) {
 			$hg_slug = slug($hg_name);
@@ -200,7 +198,7 @@ function normalize_settings($s, $c) {
 	if (!is_array($s)) {
 		return $c;
 	}
-	foreach (['enabled', 'publish_index_topics', 'publish_named_topics', 'cleanup_retained'] as $hg_k) {
+	foreach (['enabled', 'cleanup_retained'] as $hg_k) {
 		if (array_key_exists($hg_k, $s)) {
 			$c[$hg_k] = (bool)$s[$hg_k];
 		}
@@ -383,8 +381,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 			'serial' => ['device' => $_POST['serial_device'] ?? '', 'baudrate' => $_POST['serial_baudrate'] ?? 19200],
 			'tcp' => ['host' => $_POST['tcp_host'] ?? '', 'port' => $_POST['tcp_port'] ?? 4196],
 			'topic' => $_POST['topic'] ?? '',
-			'publish_index_topics' => isset($_POST['publish_index_topics']),
-			'publish_named_topics' => isset($_POST['publish_named_topics']),
 			'cleanup_retained' => isset($_POST['cleanup_retained']),
 			'republish_seconds' => $_POST['republish_seconds'] ?? 300,
 			'data_timeout_seconds' => $_POST['data_timeout_seconds'] ?? 30,
@@ -602,10 +598,10 @@ $hg_rows = max(count($hg_values), (int)($hg_status['field_count'] ?? 0), $hg_cfg
 				<input type="text" data-role="none" class="hg-bitnames" name="fields[<?= $hg_i ?>][bits]" value="<?= h(bits_text($hg_f['bits'])) ?>" placeholder="<?= t('UI.BITS_PLACEHOLDER') ?>"<?= $hg_f['type'] === 'value' ? ' style="display:none"' : '' ?>>
 			</td>
 			<td class="hg-topic">
-				<?php if ($hg_cfg['publish_index_topics']): ?><code><?= h("$hg_topic/idx_$hg_i") ?></code><?php endif; ?>
-				<?php if ($hg_cfg['publish_named_topics'] && $hg_slug !== ''): ?><br><code><?= h("$hg_topic/$hg_slug") ?></code><?php endif; ?>
-				<?php if ($hg_f['type'] !== 'value'): ?><br><code><?= h("$hg_topic/idx_$hg_i/bit_0…15") ?></code><?php endif; ?>
-				<?php if ($hg_cfg['publish_named_topics']): foreach ($hg_f['bits'] as $hg_b => $hg_n): ?><br><code><?= h("$hg_topic/" . slug($hg_n)) ?></code> <span class="hg-hint">(Bit <?= (int)$hg_b ?>)</span><?php endforeach; endif; ?>
+				<?php $hg_lines = [];
+				if ($hg_slug !== '') $hg_lines[] = '<code>' . h("$hg_topic/$hg_slug") . '</code>';
+				if ($hg_f['type'] !== 'value') foreach ($hg_f['bits'] as $hg_b => $hg_n) $hg_lines[] = '<code>' . h("$hg_topic/" . slug($hg_n)) . '</code> <span class="hg-hint">Bit ' . (int)$hg_b . '</span>';
+				echo $hg_lines ? implode('<br>', $hg_lines) : '<span class="hg-hint">' . t('UI.NOT_SENT') . '</span>'; ?>
 			</td>
 		</tr>
 		<?php endfor; ?>
@@ -754,8 +750,6 @@ $hg_rows = max(count($hg_values), (int)($hg_status['field_count'] ?? 0), $hg_cfg
 	<h3><?= t('UI.MQTT') ?></h3>
 	<label for="topic"><?= t('UI.BASE_TOPIC') ?></label>
 	<input type="text" id="topic" name="topic" value="<?= h($hg_topic) ?>">
-	<label><input type="checkbox" name="publish_index_topics" <?= $hg_cfg['publish_index_topics'] ? 'checked' : '' ?>> <?= t('UI.PUBLISH_INDEX') ?></label>
-	<label><input type="checkbox" name="publish_named_topics" <?= $hg_cfg['publish_named_topics'] ? 'checked' : '' ?>> <?= t('UI.PUBLISH_NAMES') ?></label>
 	<label><input type="checkbox" name="cleanup_retained" <?= $hg_cfg['cleanup_retained'] ? 'checked' : '' ?>> <?= t('UI.CLEANUP') ?></label>
 	<label for="republish_seconds"><?= t('UI.REPUBLISH') ?></label>
 	<input type="number" id="republish_seconds" name="republish_seconds" min="0" value="<?= (int)$hg_cfg['republish_seconds'] ?>">

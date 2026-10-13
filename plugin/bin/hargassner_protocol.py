@@ -5,7 +5,7 @@ Die Steuerung sendet etwa jede Sekunde einen ASCII-Datensatz, z. B.
     pm 100 1 7.1 68 202 0.9 ... 2129 9 ff1 5 ffff 0 0 tm 2026-01-14 09:38:36
 
 Ein Datensatz reicht vom Token "pm" bis vor das nächste "pm". Die Werte werden ab 0 durchnummeriert
-(idx_0 = "pm"), genau wie in den bisherigen Skripten – bestehende Loxone-Eingänge bleiben gültig.
+(0 = "pm"), genau wie in den bisherigen Skripten. Per MQTT gesendet werden nur Werte mit Namen.
 
 Dieses Modul hat keine Abhängigkeiten und ist ohne Hardware testbar (tests/test_protocol.py).
 """
@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 FRAME_START = "pm"
 # Mehr Werte hat kein Hargassner-Datensatz – alles darüber ist Datenmüll (z. B. fehlendes "pm")
 MAX_TOKENS = 400
-# Bitmasken werden immer mit 16 Bits veröffentlicht (Hargassner sendet bis zu 4 Hex-Stellen)
+# Bits 0–15 einer Bitmaske können benannt werden (Hargassner sendet bis zu 4 Hex-Stellen)
 BIT_COUNT = 16
 
 # Alles außer druckbaren ASCII-Zeichen trennt Werte (Leerzeichen, \r, \n, Tab, Nullbytes, Störungen)
@@ -143,7 +143,7 @@ def normalize_fields(raw: Any) -> Dict[str, dict]:
     for key, value in items:
         if isinstance(value, str):
             value = {"name": value}
-        if not isinstance(value, dict):
+        if not isinstance(value, dict) or not str(key).isdigit():
             continue
         bits_raw = value.get("bits") or {}
         bit_items = enumerate(bits_raw) if isinstance(bits_raw, list) else (bits_raw.items() if isinstance(bits_raw, dict) else ())
@@ -151,47 +151,37 @@ def normalize_fields(raw: Any) -> Dict[str, dict]:
         fields[str(key)] = {
             "name": str(value.get("name") or ""),
             "type": field_type if field_type in FIELD_TYPES else "value",
-            "bits": {str(b): str(n) for b, n in bit_items if n},
+            "bits": {str(int(b)): str(n) for b, n in bit_items if n and str(b).isdigit()},
         }
     return fields
 
 
-def build_topics(
-    frame: List[str],
-    fields: Dict[str, dict],
-    publish_index: bool = True,
-    publish_names: bool = True,
-) -> Dict[str, str]:
-    """Datensatz -> {Unter-Topic: Payload}.
+def _allowed(topic: str) -> bool:
+    return bool(topic) and topic not in RESERVED_SLUGS
 
-    * idx_<n>                Rohwert (wie bisher)
-    * idx_<n>/bit_<b>        0/1 für Felder vom Typ "hex"/"dec" (Bitmaske)
-    * <name>                 Rohwert unter dem vergebenen Namen
-    * <bitname>              0/1 für benannte Bits einer Bitmaske
+
+def build_topics(frame: List[str], fields: Dict[str, dict]) -> Dict[str, str]:
+    """Datensatz -> {Unter-Topic: Payload}. Gesendet werden nur benannte Werte:
+
+    * <name>       Rohwert unter dem vergebenen Namen, z. B. "kesseltemp"
+    * <bitname>    0/1 für benannte Bits einer Bitmaske, z. B. "stoerlampe"
     """
     topics: Dict[str, str] = {}
-    for index, raw in enumerate(frame):
-        field = fields.get(str(index)) or {}
+    for key, field in fields.items():
+        index = int(key)
+        if index >= len(frame):
+            continue
+        raw = frame[index]
         name = slug(field.get("name", ""))
-        if name in RESERVED_SLUGS or name.startswith("idx_"):
-            name = ""
-        if publish_index:
-            topics[f"idx_{index}"] = raw
-        if publish_names and name:
+        if _allowed(name):
             topics[name] = raw
 
         base = BIT_BASE.get(field.get("type", "value"))
-        if base is None:
-            continue
-        number = parse_int(raw, base)
+        number = parse_int(raw, base) if base else None
         if number is None:
             continue
-        bit_names = field.get("bits") or {}
-        for bit in range(BIT_COUNT):
-            state = "1" if number >> bit & 1 else "0"
-            if publish_index:
-                topics[f"idx_{index}/bit_{bit}"] = state
-            bit_name = slug(bit_names.get(str(bit), ""))
-            if publish_names and bit_name and bit_name not in RESERVED_SLUGS and not bit_name.startswith("idx_"):
-                topics[bit_name] = state
+        for bit, bit_label in (field.get("bits") or {}).items():
+            bit_name = slug(bit_label)
+            if _allowed(bit_name) and 0 <= int(bit) < BIT_COUNT:
+                topics[bit_name] = "1" if number >> int(bit) & 1 else "0"
     return topics

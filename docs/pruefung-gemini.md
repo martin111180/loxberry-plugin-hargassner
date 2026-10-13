@@ -9,8 +9,8 @@ Skripte hatten Schwächen, die im Dauerbetrieb Probleme machen. Das Plugin beheb
 * Datenstrom: ASCII, etwa 1 Datensatz pro Sekunde, beginnt mit `pm`, Werte durch Leerzeichen getrennt,
   19200 Baud 8N1 (mit `stty … && cat` bestätigt).
 * `readline()` funktioniert nicht zuverlässig; deshalb wird der Puffer selbst nach `pm` zerlegt.
-* Index-Zählung ab 0 mit `idx_0 = "pm"`. Das Plugin zählt **genau gleich**, damit die vorhandenen
-  Loxone-Eingänge (`hargassner_kessel_idx_…`) gültig bleiben.
+* Index-Zählung ab 0 mit Index 0 = `pm`. Das Plugin zählt **genau gleich**, damit die bisher ermittelten
+  Zuordnungen (`hargassner_mapping.json`) weiter stimmen. Gesendet werden aber nur noch benannte Werte.
 * MQTT statt UDP: Der Miniserver bekommt nur Änderungen und abonniert nur, was er braucht.
 
 ## Falsche Aussagen von Gemini
@@ -59,6 +59,6 @@ Skripte hatten Schwächen, die im Dauerbetrieb Probleme machen. Das Plugin beheb
 3. Bis der Wandler da ist: Plugin auf dem dezentralen LoxBerry installieren (Verbindung „Seriell“) und den
    alten Dienst abschalten: `sudo systemctl disable --now hargassner.service`
    (die Weboberfläche warnt, solange er noch läuft).
-4. Das Basis-Topic `hargassner/kessel` bleibt gleich, die Loxone-Eingänge `hargassner_kessel_idx_…` bleiben
-   also gültig. Nach dem Umzug das Plugin am dezentralen LoxBerry stoppen oder deinstallieren, damit nicht
+4. Das Plugin sendet nur benannte Werte (z. B. `hargassner/kessel/kesseltemp`), keine `idx_…`-Topics mehr. Loxone-Eingänge
+   auf `hargassner_kessel_idx_…` auf die Namen umstellen. Nach dem Umzug das Plugin am dezentralen LoxBerry stoppen oder deinstallieren, damit nicht
    zwei Quellen dieselben Eingänge beschreiben.

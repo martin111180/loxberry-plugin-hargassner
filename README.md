@@ -18,14 +18,12 @@ LoxBerry-Plugin-Verwaltung installieren (ab LoxBerry 3.0). Danach unter **Einste
 
 ## MQTT-Topics
 
-Basis-Topic standardmäßig `hargassner/kessel` (wie bei den früheren Skripten):
+Basis-Topic standardmäßig `hargassner/kessel`. Gesendet werden nur Werte, denen unter **Werte** ein Name gegeben wurde; welche davon an den Miniserver gehen, entscheidet das MQTT Gateway.
 
 | Topic | Inhalt |
 |---|---|
-| `…/idx_<n>` | Rohwert an Position n (`idx_0` = `pm`), wie bisher |
-| `…/idx_<n>/bit_<b>` | 0/1 je Bit, nur für Felder vom Typ Bitmaske |
-| `…/<name>` | Wert unter dem vergebenen Feldnamen, z. B. `…/kesseltemp` |
-| `…/<bitname>` | 0/1 für benannte Bits, z. B. `…/stoerlampe` |
+| `…/<name>` | Wert unter dem vergebenen Feldnamen, z. B. `…/kesseltemp` – nur benannte Werte werden gesendet |
+| `…/<bitname>` | 0/1 für benannte Bits einer Bitmaske, z. B. `…/stoerlampe` |
 | `…/bridge/status` | `online` / `offline` (Last Will) |
 | `…/bridge/connected` | 1 = Daten von der Heizung kommen an |
 | `…/bridge/error` | Fehlertext, `OK` = alles in Ordnung |

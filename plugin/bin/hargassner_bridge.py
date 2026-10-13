@@ -6,10 +6,8 @@ Seriell-Ethernet-Wandler (z. B. Waveshare RS232/485 TO ETH im Modus "TCP Server"
 die Werte per MQTT auf dem LoxBerry-Broker. Das MQTT Gateway des LoxBerry leitet sie an den Miniserver.
 
 Topics (Basis-Topic standardmäßig "hargassner/kessel"):
-    <base>/idx_<n>              Rohwert an Position n (idx_0 = "pm"), wie in den bisherigen Skripten
-    <base>/idx_<n>/bit_<b>      0/1 – nur für Felder, die als Bitmaske (hex/dezimal) eingestellt sind
-    <base>/<name>               Wert unter dem in der Weboberfläche vergebenen Namen
-    <base>/<bitname>            0/1 für benannte Bits (z. B. "stoerlampe")
+    <base>/<name>               Wert unter dem in der Weboberfläche vergebenen Namen (nur benannte Werte)
+    <base>/<bitname>            0/1 für benannte Bits einer Bitmaske (z. B. "stoerlampe")
     <base>/bridge/status        online / offline (Last Will)
     <base>/bridge/connected     1 = Daten von der Heizung kommen an
     <base>/bridge/error         Fehlertext, "OK" wenn alles in Ordnung
@@ -50,8 +48,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "serial": {"device": "/dev/ttyUSB0", "baudrate": 19200},
     "tcp": {"host": "", "port": 4196},
     "topic": "hargassner/kessel",
-    "publish_index_topics": True,
-    "publish_named_topics": True,
     "republish_seconds": 300,
     "data_timeout_seconds": 30,
     "expected_fields": 0,
@@ -393,13 +389,7 @@ class Bridge:
         self.values = frame
         self.set_connected(True)
         self.set_error("")
-        topics = build_topics(
-            frame,
-            self.fields,
-            publish_index=self.cfg.get("publish_index_topics", True),
-            publish_names=self.cfg.get("publish_named_topics", True),
-        )
-        for sub_topic, payload in topics.items():
+        for sub_topic, payload in build_topics(frame, self.fields).items():
             self.mqtt.publish(sub_topic, payload)
 
     def maintain_retained(self, now: float) -> None:
