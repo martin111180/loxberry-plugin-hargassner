@@ -9,9 +9,9 @@ $hg_service    = LBPBINDIR . "/service.sh";
 
 const HG_BACKUP_FORMAT = 'loxberry-plugin-hargassner';
 const HG_BAUDRATES = [2400, 4800, 9600, 19200, 38400, 57600, 115200];
-const HG_FIELD_TYPES = ['value', 'hex', 'dec'];
+const HG_FIELD_TYPES = ['value', 'hex'];  // hex = Bitmaske; Hargassner sendet Digitalwerte immer hexadezimal
 const HG_MAX_FIELDS = 400;   // wie MAX_TOKENS in hargassner_protocol.py
-const HG_BIT_COUNT = 16;     // wie BIT_COUNT in hargassner_protocol.py
+const HG_BIT_COUNT = 32;     // wie BIT_COUNT in hargassner_protocol.py
 
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
@@ -123,7 +123,9 @@ function normalize_fields_raw($hg_raw) {
 				$hg_bits[(string)(int)$hg_b] = cut(trim((string)$hg_n));
 			}
 		}
-		$hg_type = in_array($hg_f['type'] ?? 'value', HG_FIELD_TYPES, true) ? $hg_f['type'] : 'value';
+		$hg_type = $hg_f['type'] ?? 'value';
+		if ($hg_type === 'dec') $hg_type = 'hex';  // früherer Typ "Bitmaske dezimal"
+		if (!in_array($hg_type, HG_FIELD_TYPES, true)) $hg_type = 'value';
 		$hg_fields[(string)(int)$hg_idx] = [
 			'name' => cut(trim((string)($hg_f['name'] ?? ''))),
 			'type' => $hg_type,
@@ -631,16 +633,29 @@ $hg_rows = max(count($hg_values), (int)($hg_status['field_count'] ?? 0), $hg_cfg
 		input.style.display = type === 'value' ? 'none' : '';
 		if (type === 'value') { view.textContent = ''; return; }
 		var raw = row.querySelector('.hg-v').textContent.trim();
-		var n = type === 'hex' ? parseInt(raw, 16) : parseInt(raw, 10);
-		if (raw === '' || isNaN(n)) { view.textContent = raw === '' ? '' : '–'; return; }
+		if (!/^[0-9a-f]{1,8}$/i.test(raw)) { view.textContent = raw === '' ? '' : '–'; return; }
+		var n = parseInt(raw, 16);
+		// Bit gesetzt? (Division statt >>, damit auch Bit 31 ohne Vorzeichenfehler klappt)
+		function isSet(b) { return Math.floor(n / Math.pow(2, b)) % 2 === 1; }
+		// Namen aus "7: Störlampe, 4: Pumpe HK1" für die Anzeige der gesetzten Bits
+		var names = {};
+		row.querySelector('.hg-bitnames').value.split(/[,;\n]+/).forEach(function (part) {
+			var m = part.match(/^\s*(?:bit\s*)?(\d{1,2})\s*[=:]\s*(.+?)\s*$/i);
+			if (m) names[+m[1]] = m[2];
+		});
+		var width = n > 0xffff ? 32 : 16;
 		var html = '';
-		for (var b = 15; b >= 0; b--) {
-			html += (n >> b) & 1 ? '<b>1</b>' : '0';
+		for (var b = width - 1; b >= 0; b--) {
+			html += isSet(b) ? '<b>1</b>' : '0';
 			if (b % 4 === 0 && b) html += ' ';
 		}
 		var on = [];
-		for (b = 0; b < 16; b++) if ((n >> b) & 1) on.push(b);
-		view.innerHTML = html + ' &nbsp;Bits: ' + (on.length ? on.join(', ') : '–');
+		for (b = 0; b < 32; b++) if (isSet(b)) on.push(names[b] ? b + ' ' + names[b] : String(b));
+		view.innerHTML = html + '<br>' + hgEsc('Bits: ' + (on.length ? on.join(', ') : '–'));
+	}
+
+	function hgEsc(s) {
+		return s.replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; });
 	}
 
 	function filter() {
@@ -677,6 +692,7 @@ $hg_rows = max(count($hg_values), (int)($hg_status['field_count'] ?? 0), $hg_cfg
 	rows.forEach(function (row) {
 		bitView(row);
 		row.querySelector('.hg-type').addEventListener('change', function () { bitView(row); });
+		row.querySelector('.hg-bitnames').addEventListener('input', function () { bitView(row); });
 	});
 	if (onlyNamed) onlyNamed.addEventListener('change', filter);
 	if (onlyChanged) onlyChanged.addEventListener('change', filter);

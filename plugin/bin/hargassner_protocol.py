@@ -18,15 +18,16 @@ from typing import Any, Dict, List, Optional
 FRAME_START = "pm"
 # Mehr Werte hat kein Hargassner-Datensatz – alles darüber ist Datenmüll (z. B. fehlendes "pm")
 MAX_TOKENS = 400
-# Bits 0–15 einer Bitmaske können benannt werden (Hargassner sendet bis zu 4 Hex-Stellen)
-BIT_COUNT = 16
+# Bits 0–31 einer Bitmaske können benannt werden (Digitalwerte reichen bei Hargassner bis Bit 20 und mehr)
+BIT_COUNT = 32
 
 # Alles außer druckbaren ASCII-Zeichen trennt Werte (Leerzeichen, \r, \n, Tab, Nullbytes, Störungen)
 _SEPARATOR = re.compile(r"[^\x21-\x7e]+")
 _UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "ae", "Ö": "oe", "Ü": "ue", "ß": "ss"})
 
-FIELD_TYPES = ("value", "hex", "dec")
-BIT_BASE = {"hex": 16, "dec": 10}
+# "hex" = Bitmaske; Hargassner sendet Digitalwerte immer hexadezimal (z. B. ff1, ffff, 5c)
+FIELD_TYPES = ("value", "hex")
+BIT_BASE = {"hex": 16}
 # Diese Topic-Namen erzeugt das Plugin selbst – Feldnamen dürfen nicht darauf abgebildet werden
 RESERVED_SLUGS = ("bridge",)
 
@@ -148,6 +149,8 @@ def normalize_fields(raw: Any) -> Dict[str, dict]:
         bits_raw = value.get("bits") or {}
         bit_items = enumerate(bits_raw) if isinstance(bits_raw, list) else (bits_raw.items() if isinstance(bits_raw, dict) else ())
         field_type = value.get("type", "value")
+        if field_type == "dec":  # früherer Typ "Bitmaske dezimal" – Digitalwerte sind immer hex
+            field_type = "hex"
         fields[str(key)] = {
             "name": str(value.get("name") or ""),
             "type": field_type if field_type in FIELD_TYPES else "value",

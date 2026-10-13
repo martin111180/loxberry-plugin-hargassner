@@ -18,7 +18,7 @@ Skripte hatten Schwächen, die im Dauerbetrieb Probleme machen. Das Plugin beheb
 | Aussage | Tatsächlich |
 |---|---|
 | `ff` am Ende ist eine Checksumme | Es gibt keine Prüfsumme. `ff1` und `ffff` sind **hexadezimale** Digitalwerte (Bitmasken), wie im Doku-Beispiel `0015`. |
-| Digitalwert `2129` ist dezimal, Störung = `(v & 128)` | Ob 2129 dezimal oder hex ist, muss sich zeigen; die Nachbarwerte `ff1`/`ffff` sind sicher hex. Das Plugin kann beides (Typ „Bitmaske hex“ bzw. „dezimal“) und zeigt die Bits live an. |
+| Digitalwert `2129` ist dezimal, Störung = `(v & 128)` | Hargassner sendet Digitalwerte **immer hexadezimal** (so lesen sie auch die DAQ-Kanallisten der Steuerung und die Home-Assistant-Integrationen). `2129` ist also 0x2129, und `128` bedeutet nicht Bit 7, sondern die Bits 3, 5 und 8. Das Plugin zerlegt Bitmasken hexadezimal mit bis zu 32 Bits und zeigt sie live an. |
 | Formel `(I1 & 128) > 0` bzw. `v1 & 128` in Loxone | Loxone-Formeln kennen kein bitweises UND. Das Plugin zerlegt die Bits selbst und sendet jedes Bit als eigenes Topic (0/1). |
 | `idx_182` entsteht durch doppelte Leerzeichen; Abhilfe `split()` ohne Argument | `split()` ohne Argument war schon vorher im Skript, die „Korrektur“ hat nichts geändert. Ursache: Geht ein `pm` verloren (Störung, Start mitten im Datensatz), verschmelzen zwei Datensätze, und alle Werte rutschen auf falsche Indizes. Das Plugin verwirft Datensätze mit falscher Länge. |
 | Indexbelegung (3 = Außentemperatur, 8 = Kessel, 10/11 = Puffer …) | Geraten. Die eigene Zuordnung aus `hargassner_mapping.json` (z. B. 4 = Kesseltemp, 6 = Außentemp) ist maßgeblich. |

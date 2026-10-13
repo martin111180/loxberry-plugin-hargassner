@@ -7,7 +7,7 @@ Loxone Miniserver weiter.
 * **Zwei Anschlussarten:** USB-RS232-Adapter direkt am LoxBerry oder Seriell-Ethernet-Wandler im Netzwerk
   (z. B. Waveshare RS232/485/422 TO POE ETH, Modus „TCP Server“, Port 4196)
 * **Live-Ansicht** aller Werte mit Änderungszähler zum Zuordnen der Indizes (ersetzt Monitor und ID-Finder)
-* **Feldnamen und Bitmasken:** Digitalwerte (hex oder dezimal) werden in einzelne Bits zerlegt, z. B. die Störlampe
+* **Feldnamen und Bitmasken:** Digitalwerte (immer hexadezimal, bis 32 Bits) werden in einzelne Bits zerlegt, z. B. die Störlampe
 * **Sicherung als Datei** (Einstellungen und Feldnamen): nach einer Neuinstallation einfach wieder einspielen
 * Sendet nur Änderungen, verwirft fehlerhafte Datensätze, verbindet sich selbst neu, mit Watchdog
 

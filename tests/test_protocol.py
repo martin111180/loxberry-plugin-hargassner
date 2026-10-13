@@ -121,10 +121,21 @@ class TopicsTest(unittest.TestCase):
         # 0xff1 = 1111 1111 0001; nur benannte Bits werden gesendet
         self.assertEqual(topics, {"digital_3": "ff1", "pumpe_hk1": "1", "pumpe_hk2": "0", "stoerlampe": "1", "bit_zwoelf": "0"})
 
-    def test_decimal_bits_without_field_name(self):
-        fields = {"82": {"name": "", "type": "dec", "bits": {"0": "a", "4": "b", "7": "c", "11": "d"}}}
-        # 2129 = 0b1000_0101_0001
-        self.assertEqual(build_topics(REAL.split(), fields), {"a": "1", "b": "1", "c": "0", "d": "1"})
+    def test_digital_values_are_hex_without_field_name(self):
+        fields = {"82": {"name": "", "type": "hex", "bits": {"0": "a", "1": "b", "3": "c", "5": "d", "8": "e", "13": "f"}}}
+        # 0x2129 = 0010 0001 0010 1001 -> Bits 0, 3, 5, 8, 13
+        self.assertEqual(build_topics(REAL.split(), fields), {"a": "1", "b": "0", "c": "1", "d": "1", "e": "1", "f": "1"})
+
+    def test_bits_above_15(self):
+        frame = REAL.split()
+        frame[84] = "100000"  # nur Bit 20
+        fields = {"84": {"name": "", "type": "hex", "bits": {"20": "Bit zwanzig", "31": "Bit 31", "4": "Bit vier"}}}
+        self.assertEqual(build_topics(frame, fields), {"bit_zwanzig": "1", "bit_31": "0", "bit_vier": "0"})
+        frame[84] = "80000000"
+        self.assertEqual(build_topics(frame, fields)["bit_31"], "1")
+
+    def test_old_decimal_type_becomes_hex(self):
+        self.assertEqual(normalize_fields({"82": {"name": "D1", "type": "dec"}})["82"]["type"], "hex")
 
     def test_bits_of_plain_value_are_ignored(self):
         fields = {"82": {"name": "Wert", "type": "value", "bits": {"7": "Störlampe"}}}
@@ -145,7 +156,7 @@ class TopicsTest(unittest.TestCase):
         # PHP schreibt Arrays mit Schlüsseln 0, 1, 2 als JSON-Liste
         fields = normalize_fields([{"name": "Header"}, {"name": "Leistung", "type": "dec", "bits": ["Bit null"]}])
         self.assertEqual(fields["1"]["bits"], {"0": "Bit null"})
-        self.assertEqual(fields["1"]["type"], "dec")
+        self.assertEqual(fields["1"]["type"], "hex")
 
     def test_slug(self):
         self.assertEqual(slug("Fremdwärme"), "fremdwaerme")
