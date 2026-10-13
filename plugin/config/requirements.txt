@@ -1,0 +1,4 @@
+# Exakte Versionen: jede Installation bekommt genau die geprüfte Kombination.
+# Neue Versionen schlägt Dependabot als Pull Request vor (siehe .github/dependabot.yml).
+paho-mqtt==2.1.0
+pyserial==3.5

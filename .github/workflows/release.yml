@@ -1,0 +1,136 @@
+name: Prüfen und Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # LoxBerry 3 (Debian 12) hat Python 3.11, LoxBerry 4 (Debian 13) Python 3.13
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Shell-Skripte prüfen
+        run: |
+          cd plugin
+          for f in postinstall.sh postroot.sh preupgrade.sh postupgrade.sh bin/service.sh daemon/daemon cron/cron.05min uninstall/uninstall; do
+            bash -n "$f" && echo "ok $f"
+          done
+
+      - name: PHP prüfen
+        run: php -l plugin/webfrontend/htmlauth/index.php
+
+      - name: Python-Abhängigkeiten installieren und Bridge importieren
+        run: |
+          pip install -r plugin/config/requirements.txt
+          python -m py_compile plugin/bin/hargassner_bridge.py plugin/bin/hargassner_protocol.py tools/build_zip.py
+          (cd plugin/bin && python -c "import hargassner_bridge; print('Import ok')")
+
+      - name: Tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Plugin-ZIP bauen
+        run: python tools/build_zip.py
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.13'
+        with:
+          name: plugin-zip
+          path: dist/*.zip
+
+  release:
+    needs: pruefen
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Version prüfen
+        id: ver
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          git checkout "$GITHUB_REF_NAME"
+          CFG=$(python tools/build_zip.py --version)
+          if [ "$TAG" != "$CFG" ]; then
+            echo "::error::Tag v$TAG passt nicht zu VERSION=$CFG in plugin/plugin.cfg"
+            exit 1
+          fi
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Plugin-ZIP bauen
+        run: |
+          python tools/build_zip.py
+          # Kopie ohne Versionsnummer für den festen Link .../releases/latest/download/loxberry-plugin-hargassner.zip
+          cp "dist/loxberry-plugin-hargassner-${{ steps.ver.outputs.version }}.zip" dist/loxberry-plugin-hargassner.zip
+
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "Hargassner-Plugin $GITHUB_REF_NAME" \
+            --generate-notes
+
+      - name: release.cfg auf main aktualisieren (LoxBerry-Autoupdate)
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          REPO=https://github.com/${GITHUB_REPOSITORY}
+          git checkout main
+          cat > release.cfg <<EOF
+          # Wird vom LoxBerry für automatische Updates abgefragt (siehe RELEASECFG in plugin/plugin.cfg).
+          # Nicht von Hand pflegen – der Release-Workflow aktualisiert diese Datei bei jedem Tag v*.
+          [AUTOUPDATE]
+          VERSION=$V
+          ARCHIVEURL=$REPO/releases/download/v$V/loxberry-plugin-hargassner-$V.zip
+          INFOURL=$REPO/releases/tag/v$V
+          EOF
+          sed -i 's/^          //' release.cfg
+          if git diff --quiet release.cfg; then
+            echo "release.cfg bereits aktuell"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "release.cfg auf Version $V gesetzt"
+          git push origin main
+
+  # Sorgt dafür, dass das neueste Release die Datei ohne Versionsnummer hat
+  # (nachträglich für Releases, die vor Einführung des festen Links erstellt wurden).
+  fester-link:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: loxberry-plugin-hargassner.zip am neuesten Release prüfen
+        run: |
+          TAG=$(gh release view --json tagName -q .tagName) || { echo "Noch kein Release"; exit 0; }
+          if gh release view "$TAG" --json assets -q '.assets[].name' | grep -qx loxberry-plugin-hargassner.zip; then
+            echo "$TAG hat den festen Download bereits"
+            exit 0
+          fi
+          gh release download "$TAG" -p "loxberry-plugin-hargassner-${TAG#v}.zip" -D dl
+          cp "dl/loxberry-plugin-hargassner-${TAG#v}.zip" loxberry-plugin-hargassner.zip
+          gh release upload "$TAG" loxberry-plugin-hargassner.zip
+          echo "Fester Download an $TAG angehängt"

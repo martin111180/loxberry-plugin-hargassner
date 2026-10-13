@@ -1,0 +1,4 @@
+#!/bin/bash
+# Watchdog: startet die Hargassner-Bridge neu, falls sie abgestürzt ist.
+REPLACELBPBINDIR/service.sh watchdog >/dev/null 2>&1
+exit 0

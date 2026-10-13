@@ -1,0 +1,25 @@
+# Sucht wöchentlich nach neuen Versionen und öffnet dafür Pull Requests.
+# Der Workflow "Prüfen und Release" testet jeden PR automatisch.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /plugin/config
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Vienna
+    commit-message:
+      prefix: "Abhängigkeit"
+    labels:
+      - abhaengigkeiten
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "Workflow"
+    labels:
+      - abhaengigkeiten

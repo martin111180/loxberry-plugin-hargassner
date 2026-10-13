@@ -1,0 +1,19 @@
+{
+    "2": "Kesselzustand",
+    "4": "Kesseltemp",
+    "3": "O2",
+    "6": "Aussentemp",
+    "7": "Aussentemp gem",
+    "8": "HK1 Soll",
+    "9": "HK2 Soll",
+    "5": "Rauchtemp",
+    "10": "HK1 Ist",
+    "11": "HK2 Ist",
+    "38": "Fremdw\u00e4rme",
+    "20": "HK3 Soll",
+    "21": "HK4 Soll",
+    "22": "HK3 Ist",
+    "23": "HK4 Ist",
+    "15": "Kessel Soll",
+    "13": "Boilertemp"
+}

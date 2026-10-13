@@ -1,0 +1,28 @@
+{
+  "enabled": true,
+  "source": "serial",
+  "serial": {
+    "device": "/dev/ttyUSB0",
+    "baudrate": 19200
+  },
+  "tcp": {
+    "host": "",
+    "port": 4196
+  },
+  "topic": "hargassner/kessel",
+  "publish_index_topics": true,
+  "publish_named_topics": true,
+  "republish_seconds": 300,
+  "data_timeout_seconds": 30,
+  "expected_fields": 0,
+  "cleanup_retained": true,
+  "loglevel": "INFO",
+  "mqtt": {
+    "use_loxberry": true,
+    "host": "localhost",
+    "port": 1883,
+    "user": "",
+    "password": ""
+  },
+  "fields": {}
+}

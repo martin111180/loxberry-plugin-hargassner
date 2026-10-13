@@ -1,0 +1,6 @@
+#!/bin/bash
+# Wird als root vor dem Entfernen des Plugins ausgeführt.
+REPLACELBPBINDIR/service.sh stop
+pkill -f "REPLACELBPBINDIR/hargassner_bridge.py" 2>/dev/null
+rm -rf /dev/shm/loxberry-plugin-hargassner
+exit 0

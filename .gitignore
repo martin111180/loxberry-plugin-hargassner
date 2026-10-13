@@ -1,0 +1,23 @@
+# Build-Ergebnis
+dist/
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Lokale Testdaten / Sicherungen (können Zugangsdaten enthalten)
+*.local.json
+status.json
+hargassner-sicherung-*.json
+
+# Gemini-Verlauf: enthält das MQTT-Passwort im Klartext
+*.docx
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

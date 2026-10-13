@@ -1,0 +1,6 @@
+#!/bin/bash
+# Wird vom LoxBerry beim Systemstart als root ausgeführt.
+# Die Bridge selbst läuft als Benutzer loxberry (service.sh wechselt den Benutzer).
+# REPLACELBPBINDIR ersetzt der LoxBerry bei der Installation durch den Plugin-bin-Ordner.
+REPLACELBPBINDIR/service.sh start >/dev/null 2>&1 &
+exit 0
