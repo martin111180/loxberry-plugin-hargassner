@@ -32,9 +32,9 @@ Im MQTT Gateway wird daraus z. B. der Eingang `hargassner_kessel_stoerlampe`.
 
 ## Die Störlampe finden
 
-1. Unter **Werte** die Digitalwerte am Ende des Datensatzes (z. B. Index 82–86) auf **Bitmaske hex** stellen.
-2. Bei der nächsten Störung beobachten, welches Bit umspringt (die Zeile blinkt, der Zähler steigt).
-3. Dem Bit einen Namen geben, z. B. `7: Störlampe`. Loxone abonniert dann `hargassner_kessel_stoerlampe` (0/1).
+1. Unter **Werte** die Digitalwerte am Ende des Datensatzes (bei der Hackgut-Anlage Index 82–88) auf **Bitmaske (hex)** stellen – jedes Bit bekommt eine eigene Zeile.
+2. „nur geänderte Werte“ anhaken und bei der nächsten Störung beobachten, welches Bit umspringt (die Bitzeile blinkt, ihr Zähler steigt).
+3. In der Bitzeile einen Namen eintragen, z. B. `Störlampe`. Im MQTT Gateway gibt es dann `hargassner_kessel_stoerlampe` (0/1). Kandidaten für die Bitbedeutungen stehen in [docs/protokoll.md](docs/protokoll.md).
 
 ## Weitere Doku
 

@@ -173,26 +173,6 @@ function validate_fields($hg_fields) {
 	return [$hg_clean, $hg_errors];
 }
 
-// "7: Störlampe, 4: Pumpe HK1" (auch "7=Störlampe") -> ["7" => "Störlampe", "4" => "Pumpe HK1"]
-function parse_bits_text($hg_text) {
-	$hg_bits = [];
-	foreach (preg_split('/[,;\n]+/', (string)$hg_text) as $hg_part) {
-		if (preg_match('/^\s*(?:bit\s*)?(\d{1,2})\s*[=:]\s*(.+?)\s*$/iu', $hg_part, $hg_m) && (int)$hg_m[1] < HG_BIT_COUNT) {
-			$hg_bits[(string)(int)$hg_m[1]] = $hg_m[2];
-		}
-	}
-	ksort($hg_bits, SORT_NUMERIC);
-	return $hg_bits;
-}
-
-function bits_text($hg_bits) {
-	$hg_parts = [];
-	foreach ($hg_bits as $hg_b => $hg_n) {
-		$hg_parts[] = "$hg_b: $hg_n";
-	}
-	return implode(', ', $hg_parts);
-}
-
 // ---------------------------------------------------------------- Einstellungen
 
 // Übernimmt die vorhandenen Schlüssel aus $s (Formular oder Import) geprüft in die Konfiguration $c
@@ -358,10 +338,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 	if ($hg_action === 'save_fields') {
 		$hg_raw = [];
 		foreach ((array)($_POST['fields'] ?? []) as $hg_idx => $hg_f) {
+			// Bitnamen kommen aus den Bitzeilen (fields[i][bitnames][b]); fehlen sie (z. B. ohne JavaScript),
+			// bleiben die gespeicherten erhalten
+			$hg_bits = $hg_cfg['fields'][(string)$hg_idx]['bits'] ?? [];
+			if (isset($hg_f['bitnames']) && is_array($hg_f['bitnames'])) {
+				$hg_bits = array_filter(array_map('trim', $hg_f['bitnames']), 'strlen');
+			}
 			$hg_raw[$hg_idx] = [
 				'name' => $hg_f['name'] ?? '',
 				'type' => $hg_f['type'] ?? 'value',
-				'bits' => parse_bits_text($hg_f['bits'] ?? ''),
+				'bits' => $hg_bits,
 			];
 		}
 		// Felder, die nicht im Formular standen (z. B. Index über der aktuellen Anzahl), bleiben erhalten
@@ -544,7 +530,10 @@ LBWeb::lbheader(tr('UI.TITLE'), "", "");
 	.hg-fields td.hg-idx { color: #555; text-align: right; width: 3em; }
 	.hg-fields td.hg-val { font-family: monospace; white-space: nowrap; min-width: 7em; }
 	.hg-fields td.hg-topic { font-size: 85%; color: #555; }
-	.hg-bitview { font-family: monospace; font-size: 85%; color: #555; margin-bottom: 2px; }
+	.hg-bitview { font-family: monospace; font-size: 85%; color: #555; white-space: nowrap; }
+	.hg-fields tr.hg-bitrow td { background: #f7f7f7; padding-top: 1px; padding-bottom: 1px; }
+	.hg-fields tr.hg-bitrow td.hg-idx { font-size: 85%; white-space: nowrap; }
+	.hg-fields tr.hg-bitrow b { color: #c62828; }
 	.hg-bitview b { color: #c62828; }
 	.hg-changes { display: inline-block; min-width: 1.6em; margin-left: 6px; padding: 0 4px; border-radius: 8px; background: #fff3cd; color: #7a5b00; font-size: 80%; text-align: center; }
 	.hg-flash { animation: hg-flash 2.5s ease-out; }
@@ -575,36 +564,27 @@ $hg_rows = max(count($hg_values), (int)($hg_status['field_count'] ?? 0), $hg_cfg
 <div class="hg-toolbar">
 	<label><input type="checkbox" id="hg-only-named" data-role="none"> <?= t('UI.ONLY_NAMED') ?></label>
 	<label><input type="checkbox" id="hg-only-changed" data-role="none"> <?= t('UI.ONLY_CHANGED') ?></label>
+	<label><input type="checkbox" id="hg-all-bits" data-role="none"> <?= t('UI.SHOW_ALL_BITS') ?></label>
 	<a href="#" id="hg-reset-changes"><?= t('UI.RESET_CHANGES') ?></a>
 </div>
 <form method="post" action="index.php" data-ajax="false">
 	<input type="hidden" name="action" value="save_fields">
-	<table class="hg-table hg-fields">
+	<table class="hg-table hg-fields" data-topic="<?= h($hg_topic) ?>" data-not-sent="<?= t('UI.NOT_SENT') ?>" data-bit="<?= t('UI.BIT') ?>">
 		<tr><th>#</th><th><?= t('UI.COL_VALUE') ?></th><th><?= t('UI.COL_NAME') ?></th><th><?= t('UI.COL_TYPE') ?></th><th><?= t('UI.COL_BITS') ?></th><th><?= t('UI.COL_TOPIC') ?></th></tr>
 		<?php for ($hg_i = 0; $hg_i < $hg_rows; $hg_i++):
 			$hg_f = $hg_cfg['fields'][(string)$hg_i] ?? ['name' => '', 'type' => 'value', 'bits' => []];
-			$hg_slug = slug($hg_f['name']);
-			$hg_named = $hg_f['name'] !== '' || $hg_f['bits'];
 		?>
-		<tr class="hg-row" data-idx="<?= $hg_i ?>" data-named="<?= $hg_named ? 1 : 0 ?>">
+		<tr class="hg-row" data-idx="<?= $hg_i ?>" data-bits="<?= h(json_encode((object)$hg_f['bits'], JSON_UNESCAPED_UNICODE)) ?>">
 			<td class="hg-idx"><?= $hg_i ?></td>
 			<td class="hg-val"><span class="hg-v"><?= h($hg_values[$hg_i] ?? '') ?></span><span class="hg-changes" style="display:none"></span></td>
-			<td><input type="text" data-role="none" name="fields[<?= $hg_i ?>][name]" value="<?= h($hg_f['name']) ?>" maxlength="60"<?= $hg_i === 0 ? ' disabled' : '' ?>></td>
+			<td><input type="text" data-role="none" class="hg-name" name="fields[<?= $hg_i ?>][name]" value="<?= h($hg_f['name']) ?>" maxlength="60"<?= $hg_i === 0 ? ' disabled' : '' ?>></td>
 			<td><select data-role="none" class="hg-type" name="fields[<?= $hg_i ?>][type]"<?= $hg_i === 0 ? ' disabled' : '' ?>>
 				<?php foreach (HG_FIELD_TYPES as $hg_type): ?>
 				<option value="<?= $hg_type ?>" <?= $hg_f['type'] === $hg_type ? 'selected' : '' ?>><?= t('UI.TYPE_' . strtoupper($hg_type)) ?></option>
 				<?php endforeach; ?>
 			</select></td>
-			<td class="hg-bits">
-				<div class="hg-bitview"></div>
-				<input type="text" data-role="none" class="hg-bitnames" name="fields[<?= $hg_i ?>][bits]" value="<?= h(bits_text($hg_f['bits'])) ?>" placeholder="<?= t('UI.BITS_PLACEHOLDER') ?>"<?= $hg_f['type'] === 'value' ? ' style="display:none"' : '' ?>>
-			</td>
-			<td class="hg-topic">
-				<?php $hg_lines = [];
-				if ($hg_slug !== '') $hg_lines[] = '<code>' . h("$hg_topic/$hg_slug") . '</code>';
-				if ($hg_f['type'] !== 'value') foreach ($hg_f['bits'] as $hg_b => $hg_n) $hg_lines[] = '<code>' . h("$hg_topic/" . slug($hg_n)) . '</code> <span class="hg-hint">Bit ' . (int)$hg_b . '</span>';
-				echo $hg_lines ? implode('<br>', $hg_lines) : '<span class="hg-hint">' . t('UI.NOT_SENT') . '</span>'; ?>
-			</td>
+			<td class="hg-bits"><span class="hg-bitview"></span></td>
+			<td class="hg-topic"></td>
 		</tr>
 		<?php endfor; ?>
 	</table>
@@ -616,90 +596,180 @@ $hg_rows = max(count($hg_values), (int)($hg_status['field_count'] ?? 0), $hg_cfg
 <script>
 // Live-Werte alle 2 s aktualisieren (Eingabefelder bleiben unberührt). Geänderte Werte blinken kurz und
 // werden gezählt – so findet man heraus, welcher Index zu welcher Anzeige der Heizung gehört.
+// Bitmasken bekommen je Bit eine eigene Zeile mit 0/1, Änderungszähler und Namensfeld.
 (function () {
+	var BIT_COUNT = 32;  // wie BIT_COUNT in hargassner_protocol.py
 	var statusBox = document.getElementById('hg-live-status');
+	var table = document.querySelector('table.hg-fields');
 	var rows = Array.prototype.slice.call(document.querySelectorAll('tr.hg-row'));
 	var onlyNamed = document.getElementById('hg-only-named');
 	var onlyChanged = document.getElementById('hg-only-changed');
-	var changes = {};
-	var last = {};
+	var allBits = document.getElementById('hg-all-bits');
+	var state = {};  // je Index: letzter Wert, Änderungen, Bitzeilen, Bitzähler, "war schon 1"
 
-	rows.forEach(function (row) { last[row.dataset.idx] = row.querySelector('.hg-v').textContent; });
-
-	function bitView(row) {
-		var view = row.querySelector('.hg-bitview');
-		var input = row.querySelector('.hg-bitnames');
-		var type = row.querySelector('.hg-type').value;
-		input.style.display = type === 'value' ? 'none' : '';
-		if (type === 'value') { view.textContent = ''; return; }
-		var raw = row.querySelector('.hg-v').textContent.trim();
-		if (!/^[0-9a-f]{1,8}$/i.test(raw)) { view.textContent = raw === '' ? '' : '–'; return; }
-		var n = parseInt(raw, 16);
-		// Bit gesetzt? (Division statt >>, damit auch Bit 31 ohne Vorzeichenfehler klappt)
-		function isSet(b) { return Math.floor(n / Math.pow(2, b)) % 2 === 1; }
-		// Namen aus "7: Störlampe, 4: Pumpe HK1" für die Anzeige der gesetzten Bits
-		var names = {};
-		row.querySelector('.hg-bitnames').value.split(/[,;\n]+/).forEach(function (part) {
-			var m = part.match(/^\s*(?:bit\s*)?(\d{1,2})\s*[=:]\s*(.+?)\s*$/i);
-			if (m) names[+m[1]] = m[2];
-		});
-		var width = n > 0xffff ? 32 : 16;
-		var html = '';
-		for (var b = width - 1; b >= 0; b--) {
-			html += isSet(b) ? '<b>1</b>' : '0';
-			if (b % 4 === 0 && b) html += ' ';
-		}
-		var on = [];
-		for (b = 0; b < 32; b++) if (isSet(b)) on.push(names[b] ? b + ' ' + names[b] : String(b));
-		view.innerHTML = html + '<br>' + hgEsc('Bits: ' + (on.length ? on.join(', ') : '–'));
+	function esc(s) {
+		return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; });
 	}
 
-	function hgEsc(s) {
-		return s.replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; });
+	// gleiche Regel wie slug() in hargassner_protocol.py / index.php
+	function slug(name) {
+		var map = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'Ä': 'ae', 'Ö': 'oe', 'Ü': 'ue', 'ß': 'ss' };
+		return String(name).replace(/[äöüÄÖÜß]/g, function (c) { return map[c]; })
+			.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+	}
+
+	function topicHtml(name) {
+		var s = slug(name);
+		if (!s || s === 'bridge') return '<span class="hg-hint">' + esc(table.dataset.notSent) + '</span>';
+		return '<code>' + esc(table.dataset.topic + '/' + s) + '</code>';
+	}
+
+	// Hex-Wert als Zahl oder null (Division statt >>, damit auch Bit 31 ohne Vorzeichenfehler klappt)
+	function hexValue(raw) {
+		return /^[0-9a-f]{1,8}$/i.test(raw) ? parseInt(raw, 16) : null;
+	}
+	function bitOf(n, b) { return Math.floor(n / Math.pow(2, b)) % 2; }
+
+	function flash(el) {
+		el.classList.remove('hg-flash');
+		void el.offsetWidth;  // Animation neu starten
+		el.classList.add('hg-flash');
+	}
+
+	function isHex(row) { return row.querySelector('.hg-type').value === 'hex'; }
+
+	// Bitzeilen unter einer Bitmaske anlegen bzw. entfernen
+	function syncBitRows(row) {
+		var st = state[row.dataset.idx];
+		if (!isHex(row)) {
+			st.bitRows.forEach(function (r) { r.parentNode.removeChild(r); });
+			st.bitRows = [];
+			return;
+		}
+		if (st.bitRows.length) return;
+		var idx = row.dataset.idx;
+		var names = JSON.parse(row.dataset.bits || '{}');
+		var after = row;
+		for (var b = 0; b < BIT_COUNT; b++) {
+			var tr = document.createElement('tr');
+			tr.className = 'hg-bitrow';
+			tr.dataset.bit = b;
+			tr.innerHTML = '<td class="hg-idx">↳ ' + esc(table.dataset.bit) + ' ' + b + '</td>' +
+				'<td class="hg-val"><span class="hg-bv"></span><span class="hg-changes" style="display:none"></span></td>' +
+				'<td><input type="text" data-role="none" class="hg-bitname" maxlength="60" name="fields[' + idx + '][bitnames][' + b + ']" value="' + esc(names[b] || '') + '"></td>' +
+				'<td></td><td></td><td class="hg-topic"></td>';
+			tr.querySelector('.hg-bitname').addEventListener('input', function () { renderTopics(row); filter(); });
+			after.parentNode.insertBefore(tr, after.nextSibling);
+			after = tr;
+			st.bitRows.push(tr);
+		}
+		st.bitChanges = st.bitChanges || {};
+		st.everSet = st.everSet || {};
+		renderValue(row, false);
+		renderTopics(row);
+	}
+
+	function renderTopics(row) {
+		var lines = [];
+		var name = row.querySelector('.hg-name').value;
+		if (slug(name)) lines.push(topicHtml(name));
+		state[row.dataset.idx].bitRows.forEach(function (tr) {
+			var bitName = tr.querySelector('.hg-bitname').value;
+			tr.querySelector('.hg-topic').innerHTML = topicHtml(bitName);
+			if (slug(bitName)) lines.push(topicHtml(bitName) + ' <span class="hg-hint">Bit ' + tr.dataset.bit + '</span>');
+		});
+		row.querySelector('.hg-topic').innerHTML = lines.length ? lines.join('<br>') : topicHtml('');
+	}
+
+	// Wert (und Bits) einer Zeile anzeigen; countChanges = Änderungen gegenüber dem letzten Wert zählen
+	function renderValue(row, countChanges) {
+		var st = state[row.dataset.idx];
+		var raw = row.querySelector('.hg-v').textContent.trim();
+		var view = row.querySelector('.hg-bitview');
+		var n = isHex(row) ? hexValue(raw) : null;
+		if (n === null) { view.textContent = isHex(row) && raw !== '' ? '–' : ''; }
+		else {
+			var width = n > 0xffff ? 32 : 16, html = '';
+			for (var b = width - 1; b >= 0; b--) {
+				html += bitOf(n, b) ? '<b>1</b>' : '0';
+				if (b % 4 === 0 && b) html += ' ';
+			}
+			view.innerHTML = html;
+		}
+		st.bitRows.forEach(function (tr) {
+			var b = +tr.dataset.bit;
+			var cell = tr.querySelector('.hg-bv');
+			var bit = n === null ? '' : String(bitOf(n, b));
+			if (countChanges && st.lastNumber !== null && n !== null && bitOf(st.lastNumber, b) !== bitOf(n, b)) {
+				st.bitChanges[b] = (st.bitChanges[b] || 0) + 1;
+				var badge = tr.querySelector('.hg-changes');
+				badge.textContent = '×' + st.bitChanges[b];
+				badge.style.display = '';
+				flash(tr);
+			}
+			if (bit === '1') st.everSet[b] = true;
+			cell.innerHTML = bit === '1' ? '<b>1</b>' : bit;
+		});
+		st.lastNumber = n;
 	}
 
 	function filter() {
 		rows.forEach(function (row) {
-			var hide = (onlyNamed && onlyNamed.checked && row.dataset.named !== '1') ||
-				(onlyChanged && onlyChanged.checked && !changes[row.dataset.idx]);
-			row.style.display = hide ? 'none' : '';
+			var st = state[row.dataset.idx];
+			var anyBitVisible = false;
+			var anyBitNamed = false;
+			st.bitRows.forEach(function (tr) {
+				var b = tr.dataset.bit;
+				var named = tr.querySelector('.hg-bitname').value.trim() !== '';
+				var changed = !!(st.bitChanges && st.bitChanges[b]);
+				anyBitNamed = anyBitNamed || named;
+				var show = ((allBits && allBits.checked) || named || changed || (st.everSet && st.everSet[b])) &&
+					!(onlyNamed && onlyNamed.checked && !named) &&
+					!(onlyChanged && onlyChanged.checked && !changed);
+				tr.style.display = show ? '' : 'none';
+				anyBitVisible = anyBitVisible || show;
+			});
+			var named = row.querySelector('.hg-name').value.trim() !== '' || anyBitNamed;
+			var hide = (onlyNamed && onlyNamed.checked && !named) || (onlyChanged && onlyChanged.checked && !st.changes);
+			row.style.display = hide && !anyBitVisible ? 'none' : '';
 		});
 	}
 
 	function update(values) {
 		rows.forEach(function (row) {
-			var idx = row.dataset.idx;
+			var st = state[row.dataset.idx];
 			var cell = row.querySelector('.hg-v');
-			var val = values[idx] !== undefined ? String(values[idx]) : '';
-			if (val !== last[idx]) {
-				if (last[idx] !== '' && val !== '') {
-					changes[idx] = (changes[idx] || 0) + 1;
-					var badge = row.querySelector('.hg-changes');
-					badge.textContent = '×' + changes[idx];
-					badge.style.display = '';
-					cell.parentNode.classList.remove('hg-flash');
-					void cell.parentNode.offsetWidth;  // Animation neu starten
-					cell.parentNode.classList.add('hg-flash');
-				}
-				last[idx] = val;
-				cell.textContent = val;
-				bitView(row);
+			var val = values[row.dataset.idx] !== undefined ? String(values[row.dataset.idx]) : '';
+			if (val === st.last) return;
+			var counted = st.last !== '' && val !== '';
+			if (counted) {
+				st.changes += 1;
+				var badge = row.querySelector('.hg-changes');
+				badge.textContent = '×' + st.changes;
+				badge.style.display = '';
+				flash(row);
 			}
+			st.last = val;
+			cell.textContent = val;
+			renderValue(row, counted);
 		});
 		filter();
 	}
 
 	rows.forEach(function (row) {
-		bitView(row);
-		row.querySelector('.hg-type').addEventListener('change', function () { bitView(row); });
-		row.querySelector('.hg-bitnames').addEventListener('input', function () { bitView(row); });
+		state[row.dataset.idx] = { last: row.querySelector('.hg-v').textContent, changes: 0, bitRows: [], bitChanges: {}, everSet: {}, lastNumber: null };
+		renderValue(row, false);
+		syncBitRows(row);
+		renderTopics(row);
+		row.querySelector('.hg-type').addEventListener('change', function () { syncBitRows(row); renderValue(row, false); renderTopics(row); filter(); });
+		row.querySelector('.hg-name').addEventListener('input', function () { renderTopics(row); filter(); });
 	});
-	if (onlyNamed) onlyNamed.addEventListener('change', filter);
-	if (onlyChanged) onlyChanged.addEventListener('change', filter);
+	filter();
+	[onlyNamed, onlyChanged, allBits].forEach(function (cb) { if (cb) cb.addEventListener('change', filter); });
 	var reset = document.getElementById('hg-reset-changes');
 	if (reset) reset.addEventListener('click', function (e) {
 		e.preventDefault();
-		changes = {};
+		Object.keys(state).forEach(function (k) { state[k].changes = 0; state[k].bitChanges = {}; });
 		document.querySelectorAll('.hg-changes').forEach(function (b) { b.style.display = 'none'; });
 		filter();
 	});
