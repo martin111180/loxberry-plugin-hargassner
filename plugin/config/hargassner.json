@@ -9,7 +9,7 @@
     "host": "",
     "port": 4196
   },
-  "topic": "hargassner/kessel",
+  "topic": "hargassner",
   "republish_seconds": 300,
   "data_timeout_seconds": 30,
   "expected_fields": 0,

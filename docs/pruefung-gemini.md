@@ -59,6 +59,6 @@ Skripte hatten Schwächen, die im Dauerbetrieb Probleme machen. Das Plugin beheb
 3. Bis der Wandler da ist: Plugin auf dem dezentralen LoxBerry installieren (Verbindung „Seriell“) und den
    alten Dienst abschalten: `sudo systemctl disable --now hargassner.service`
    (die Weboberfläche warnt, solange er noch läuft).
-4. Das Plugin sendet nur benannte Werte (z. B. `hargassner/kessel/kesseltemp`), keine `idx_…`-Topics mehr. Loxone-Eingänge
+4. Das Plugin sendet nur benannte Werte (z. B. `hargassner/kesseltemp`), keine `idx_…`-Topics mehr. Loxone-Eingänge
    auf `hargassner_kessel_idx_…` auf die Namen umstellen. Nach dem Umzug das Plugin am dezentralen LoxBerry stoppen oder deinstallieren, damit nicht
    zwei Quellen dieselben Eingänge beschreiben.

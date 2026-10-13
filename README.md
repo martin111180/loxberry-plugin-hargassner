@@ -18,7 +18,7 @@ LoxBerry-Plugin-Verwaltung installieren (ab LoxBerry 3.0). Danach unter **Einste
 
 ## MQTT-Topics
 
-Basis-Topic standardmäßig `hargassner/kessel`. Gesendet werden nur Werte, denen unter **Werte** ein Name gegeben wurde; welche davon an den Miniserver gehen, entscheidet das MQTT Gateway.
+Basis-Topic standardmäßig `hargassner` (bis Version 0.1.4: `hargassner/kessel`; bestehende Installationen behalten ihre Einstellung). Gesendet werden nur Werte, denen unter **Werte** ein Name gegeben wurde; welche davon an den Miniserver gehen, entscheidet das MQTT Gateway.
 
 | Topic | Inhalt |
 |---|---|
@@ -28,13 +28,13 @@ Basis-Topic standardmäßig `hargassner/kessel`. Gesendet werden nur Werte, dene
 | `…/bridge/connected` | 1 = Daten von der Heizung kommen an |
 | `…/bridge/error` | Fehlertext, `OK` = alles in Ordnung |
 
-Im MQTT Gateway wird daraus z. B. der Eingang `hargassner_kessel_stoerlampe`.
+Im MQTT Gateway wird daraus z. B. der Eingang `hargassner_stoerlampe`.
 
 ## Die Störlampe finden
 
 1. Unter **Werte** die Digitalwerte am Ende des Datensatzes (bei der Hackgut-Anlage Index 82–88) auf **Bitmaske (hex)** stellen – jedes Bit bekommt eine eigene Zeile.
 2. „nur geänderte Werte“ anhaken und bei der nächsten Störung beobachten, welches Bit umspringt (die Bitzeile blinkt, ihr Zähler steigt).
-3. In der Bitzeile einen Namen eintragen, z. B. `Störlampe`. Im MQTT Gateway gibt es dann `hargassner_kessel_stoerlampe` (0/1). Kandidaten für die Bitbedeutungen stehen in [docs/protokoll.md](docs/protokoll.md).
+3. In der Bitzeile einen Namen eintragen, z. B. `Störlampe`. Im MQTT Gateway gibt es dann `hargassner_stoerlampe` (0/1). Kandidaten für die Bitbedeutungen stehen in [docs/protokoll.md](docs/protokoll.md).
 
 ## Weitere Doku
 

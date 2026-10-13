@@ -22,7 +22,7 @@ function default_config() {
 		'source' => 'serial',
 		'serial' => ['device' => '/dev/ttyUSB0', 'baudrate' => 19200],
 		'tcp' => ['host' => '', 'port' => 4196],
-		'topic' => 'hargassner/kessel',
+		'topic' => 'hargassner',
 		'republish_seconds' => 300,
 		'data_timeout_seconds' => 30,
 		'expected_fields' => 0,
@@ -209,7 +209,7 @@ function normalize_settings($s, $c) {
 	}
 	if (isset($s['topic'])) {
 		$hg_topic = trim(preg_replace('#[^A-Za-z0-9_/\-]#', '', (string)$s['topic']), '/');
-		$c['topic'] = $hg_topic !== '' ? $hg_topic : 'hargassner/kessel';
+		$c['topic'] = $hg_topic !== '' ? $hg_topic : 'hargassner';
 	}
 	if (isset($s['republish_seconds'])) {
 		$hg_v = max(0, (int)$s['republish_seconds']);

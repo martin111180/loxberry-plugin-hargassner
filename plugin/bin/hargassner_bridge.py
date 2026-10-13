@@ -5,7 +5,7 @@ Liest den Datenstrom der Hargassner-Steuerung – direkt über die serielle Schn
 Seriell-Ethernet-Wandler (z. B. Waveshare RS232/485 TO ETH im Modus "TCP Server") – und veröffentlicht
 die Werte per MQTT auf dem LoxBerry-Broker. Das MQTT Gateway des LoxBerry leitet sie an den Miniserver.
 
-Topics (Basis-Topic standardmäßig "hargassner/kessel"):
+Topics (Basis-Topic standardmäßig "hargassner"):
     <base>/<name>               Wert unter dem in der Weboberfläche vergebenen Namen (nur benannte Werte)
     <base>/<bitname>            0/1 für benannte Bits einer Bitmaske (z. B. "stoerlampe")
     <base>/bridge/status        online / offline (Last Will)
@@ -47,7 +47,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "source": "serial",
     "serial": {"device": "/dev/ttyUSB0", "baudrate": 19200},
     "tcp": {"host": "", "port": 4196},
-    "topic": "hargassner/kessel",
+    "topic": "hargassner",
     "republish_seconds": 300,
     "data_timeout_seconds": 30,
     "expected_fields": 0,
@@ -313,7 +313,7 @@ class Bridge:
     def __init__(self, cfg: dict, status_file: str) -> None:
         self.cfg = cfg
         self.status_file = status_file
-        self.base = cfg["topic"].strip("/") or "hargassner/kessel"
+        self.base = cfg["topic"].strip("/") or "hargassner"
         self.fields = normalize_fields(cfg.get("fields"))
         self.timeout = max(5, int(cfg.get("data_timeout_seconds") or 30))
         self.republish = int(cfg.get("republish_seconds") or 0)
