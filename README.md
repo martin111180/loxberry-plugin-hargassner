@@ -39,6 +39,7 @@ Im MQTT Gateway wird daraus z. B. der Eingang `hargassner_kessel_stoerlampe`.
 ## Weitere Doku
 
 * [Prüfung der Gemini-Lösung und Umstieg von den alten Skripten](docs/pruefung-gemini.md)
+* [Datenprotokoll (Hainzl-Doku HSV15) und Vergleich mit der Hackgut-Anlage](docs/protokoll.md)
 * [Entwicklung und Releases](docs/entwicklung.md)
 
 ## Hinweis
