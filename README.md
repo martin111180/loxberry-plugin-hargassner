@@ -44,5 +44,5 @@ Im MQTT Gateway wird daraus z. B. der Eingang `hargassner_kessel_stoerlampe`.
 ## Hinweis
 
 Inoffizielles Community-Projekt, nicht mit der Hargassner GmbH verbunden und nicht von ihr geprüft oder
-unterstützt. „Hargassner“ ist eine Marke ihres Inhabers und wird hier nur genannt, um die unterstützten
+unterstützt. Name und Logo „Hargassner“ sind Marken ihres Inhabers und werden hier nur verwendet, um die unterstützten
 Heizungen zu bezeichnen.
